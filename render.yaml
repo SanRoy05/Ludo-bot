@@ -1,0 +1,7 @@
+services:
+  - type: worker
+    name: ludo-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python ludo_bot/bot.py
