@@ -19,27 +19,51 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
 ENV/
 env/
 .venv/
+env.bak/
+venv.bak/
 
-# IDE
+# IDE & Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.iml
 
-# Database sessions (temporary)
+# Database & sessions (temporary)
 *.session
 *.session-journal
+*.db
+ludo_game.db
 
-# Environment variables
+# Environment variables (NEVER commit actual .env)
 .env
+.env.local
+.env.*.local
 
 # OS
 .DS_Store
 Thumbs.db
+.directory
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Flyio / Deployment
+.env.production
+dist/
