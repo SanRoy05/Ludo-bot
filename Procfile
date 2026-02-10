@@ -1,1 +1,1 @@
-worker: python ludo_bot/bot.py
+worker: cd ludo_bot && python bot.py
