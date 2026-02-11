@@ -1,1 +1,1 @@
-worker: cd ludo_bot && python bot.py
+web: uvicorn main:fastapi_app --host 0.0.0.0 --port $PORT
