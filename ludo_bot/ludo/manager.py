@@ -4,18 +4,21 @@ import random
 from typing import Dict, List, Optional
 from .state import GameState, Player, Token, Tournament, Match
 from .rules import get_valid_moves, move_token, is_game_over
+import db
 
 class LudoManager:
     def __init__(self):
-        self.games: Dict[str, GameState] = {} # Use string key to support match_id
+        pass # No in-memory state
 
     def _get_key(self, chat_id: int, match_id: Optional[str] = None) -> str:
-        if match_id: return f"m_{match_id}"
-        return f"c_{chat_id}"
+        # Note: In stateless DB version, we use chat_id or match_id directly in DB queries.
+        # This helper is less critical but kept for logic consistency.
+        return f"m_{match_id}" if match_id else f"c_{chat_id}"
 
-    def create_lobby(self, chat_id: int, creator_id: int, creator_name: str, match_id: Optional[str] = None, players: List[int] = None) -> Optional[str]:
-        key = self._get_key(chat_id, match_id)
-        if key in self.games:
+    async def create_lobby(self, chat_id: int, creator_id: int, creator_name: str, match_id: Optional[str] = None, players: List[int] = None) -> Optional[str]:
+        # Check if game exists
+        existing = await self.get_game_state(chat_id, match_id)
+        if existing:
             return "A game is already active here!"
         
         if players:
@@ -26,12 +29,11 @@ class LudoManager:
             creator = Player(user_id=creator_id, first_name=creator_name, color_index=0)
             state = GameState(chat_id=chat_id, players=[creator], is_lobby=True)
             
-        self.games[key] = state
+        await db.save_game_state(chat_id, state.to_dict())
         return None
 
-    def join_lobby(self, chat_id: int, user_id: int, user_name: str, match_id: Optional[str] = None) -> str:
-        key = self._get_key(chat_id, match_id)
-        state = self.games.get(key)
+    async def join_lobby(self, chat_id: int, user_id: int, user_name: str, match_id: Optional[str] = None) -> str:
+        state = await self.get_game_state(chat_id, match_id)
         if not state: return "No active lobby!"
         if not state.is_lobby: return "Game already started!"
         if any(p.user_id == user_id for p in state.players): return "You already joined!"
@@ -39,30 +41,30 @@ class LudoManager:
         
         color_idx = len(state.players)
         state.players.append(Player(user_id=user_id, first_name=user_name, color_index=color_idx))
+        await db.save_game_state(chat_id, state.to_dict())
         return f"{user_name} joined the game!"
 
-    def leave_lobby(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> str:
-        key = self._get_key(chat_id, match_id)
-        state = self.games.get(key)
+    async def leave_lobby(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> str:
+        state = await self.get_game_state(chat_id, match_id)
         if not state or not state.is_lobby: return "No active lobby!"
         
         original_count = len(state.players)
         state.players = [p for p in state.players if p.user_id != user_id]
         
         if len(state.players) == 0:
-            del self.games[key]
+            await db.delete_game_state(chat_id)
             return "Lobby closed (no players)."
         
         if len(state.players) < original_count:
             # Re-assign colors
             for i, p in enumerate(state.players):
                 p.color_index = i
+            await db.save_game_state(chat_id, state.to_dict())
             return "You left the lobby."
         return "You were not in the lobby."
 
-    def start_game(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> str:
-        key = self._get_key(chat_id, match_id)
-        state = self.games.get(key)
+    async def start_game(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> str:
+        state = await self.get_game_state(chat_id, match_id)
         if not state or not state.is_lobby: return "No lobby found!"
         
         if len(state.players) < 2: return "Need at least 2 players to start!"
@@ -74,11 +76,11 @@ class LudoManager:
         
         state.current_turn_index = 0
         state.last_roll_time = 0
+        await db.save_game_state(chat_id, state.to_dict())
         return "Game started! 🎲"
 
-    def roll_dice(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> tuple[Optional[int], str]:
-        key = self._get_key(chat_id, match_id)
-        state = self.games.get(key)
+    async def roll_dice(self, chat_id: int, user_id: int, match_id: Optional[str] = None) -> tuple[Optional[int], str]:
+        state = await self.get_game_state(chat_id, match_id)
         if not state or state.is_lobby: return None, "No active game!"
         
         current_player = state.players[state.current_turn_index]
@@ -93,13 +95,14 @@ class LudoManager:
             state.dice_value = None
             msg = f"Rolled {val}. No valid moves. Skipping turn..."
             state.current_turn_index = (state.current_turn_index + 1) % len(state.players)
+            await db.save_game_state(chat_id, state.to_dict())
             return val, msg
             
+        await db.save_game_state(chat_id, state.to_dict())
         return val, f"Rolled {val}! Choose a token to move."
 
     async def move_token(self, chat_id: int, user_id: int, token_idx: int, match_id: Optional[str] = None) -> str:
-        key = self._get_key(chat_id, match_id)
-        state = self.games.get(key)
+        state = await self.get_game_state(chat_id, match_id)
         if not state or state.is_lobby or state.dice_value is None: return "Action not allowed."
         
         current_player_idx = state.current_turn_index
@@ -112,22 +115,13 @@ class LudoManager:
         # Check win
         if is_game_over(current_player):
             state.winner = user_id
-            
-            # Award rewards
-            # 1st place: winner
-            # For simplicity, 2nd place and others are not tracked mid-game.
-            # We'll give winner 25 and others 2 for now as it's a "winner takes all" end.
             for p in state.players:
-                rank = 1 if p.user_id == user_id else 3 # 1st or "others"
+                rank = 1 if p.user_id == user_id else 3
                 await db.update_player_game_end(p.user_id, p.first_name, rank)
             
             winner_name = current_player.first_name
-            del self.games[key]
-            await db.delete_game_state(chat_id) # Note: DB persistence is still chat-scoped for simplicity
+            await db.delete_game_state(chat_id)
             return f"🎉 {winner_name} won the game!"
-
-        # Persistence
-        await db.save_game_state(chat_id, state.to_json())
 
         # Extra turn on 6 or kill
         if dice == 6 or killed:
@@ -137,36 +131,30 @@ class LudoManager:
             msg = f"Moved token. It's {state.players[state.current_turn_index].first_name}'s turn."
         
         state.dice_value = None
+        await db.save_game_state(chat_id, state.to_dict())
         return msg
 
     async def get_game_state(self, chat_id: int, match_id: Optional[str] = None) -> Optional[GameState]:
-        key = self._get_key(chat_id, match_id)
-        if key in self.games:
-            return self.games[key]
-        
-        # Try loading from DB
-        # Note: DB only stores by chat_id for now, so match_id support is limited in DB persistence
-        # We'll stick to chat_id for normal games.
-        if match_id is None:
-            db_json = await db.get_game_state(chat_id)
-            if db_json:
-                state = GameState.from_json(chat_id, db_json)
-                self.games[key] = state
-                return state
+        # For simple games, we use chat_id. For matches, we could use match_id but db.py uses chat_id as PK.
+        # If match_id is used, we'd need a different table or mapping.
+        # For now, we'll follow the existing convention where match games are also chat-scoped.
+        data = await db.get_game_state(chat_id)
+        if data:
+            return GameState.from_dict(data)
         return None
 
-    def delete_game(self, chat_id: int, match_id: Optional[str] = None) -> bool:
-        key = self._get_key(chat_id, match_id)
-        if key in self.games:
-            del self.games[key]
+    async def delete_game(self, chat_id: int, match_id: Optional[str] = None) -> bool:
+        state = await self.get_game_state(chat_id, match_id)
+        if state:
+            await db.delete_game_state(chat_id)
             return True
         return False
 
 class TournamentManager:
     def __init__(self):
-        self.tournaments: Dict[str, Tournament] = {}
+        pass
 
-    def create_tournament(self, creator_id: int) -> str:
+    async def create_tournament(self, creator_id: int) -> str:
         t_id = str(uuid.uuid4())[:8]
         tournament = Tournament(
             tournament_id=t_id,
@@ -174,21 +162,22 @@ class TournamentManager:
             rounds=[],
             status="waiting"
         )
-        self.tournaments[t_id] = tournament
+        await db.save_tournament_state(t_id, tournament.to_dict())
         return t_id
 
-    def join_tournament(self, t_id: str, user_id: int) -> str:
-        t = self.tournaments.get(t_id)
+    async def join_tournament(self, t_id: str, user_id: int) -> str:
+        t = await self.get_tournament(t_id)
         if not t: return "Tournament not found."
         if t.status != "waiting": return "Tournament already started."
         if user_id in t.players: return "You already joined."
         if len(t.players) >= 16: return "Tournament is full (max 16)."
         
         t.players.append(user_id)
+        await db.save_tournament_state(t_id, t.to_dict())
         return "Joined successfully!"
 
-    def start_tournament(self, t_id: str) -> Optional[str]:
-        t = self.tournaments.get(t_id)
+    async def start_tournament(self, t_id: str) -> Optional[str]:
+        t = await self.get_tournament(t_id)
         if not t: return "Tournament not found."
         num_players = len(t.players)
         
@@ -197,7 +186,6 @@ class TournamentManager:
         t.status = "active"
         random.shuffle(t.players)
         
-        # Generate Round 1 (Standard 1v1 eliminination using 2-player Ludo)
         matches = []
         pair_list = t.players[:]
         while len(pair_list) >= 2:
@@ -207,18 +195,15 @@ class TournamentManager:
             matches.append(match)
             
         t.rounds.append(matches)
+        await db.save_tournament_state(t_id, t.to_dict())
         return None
 
-    def get_match_by_id(self, match_id: str) -> Optional[Match]:
-        for t in self.tournaments.values():
-            for r in t.rounds:
-                for m in r:
-                    if m.match_id == match_id:
-                        return m
-        return None
+    async def get_tournament(self, t_id: str) -> Optional[Tournament]:
+        data = await db.get_tournament_state(t_id)
+        return Tournament.from_dict(data) if data else None
 
-    def set_match_winner(self, t_id: str, match_id: str, winner_id: int):
-        t = self.tournaments.get(t_id)
+    async def set_match_winner(self, t_id: str, match_id: str, winner_id: int):
+        t = await self.get_tournament(t_id)
         if not t: return
         
         target_match = None
@@ -247,3 +232,5 @@ class TournamentManager:
                     p2 = winners_pool.pop(0)
                     next_matches.append(Match(match_id=str(uuid.uuid4())[:6], players=[p1, p2]))
                 t.rounds.append(next_matches)
+        
+        await db.save_tournament_state(t_id, t.to_dict())

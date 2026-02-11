@@ -1,4 +1,7 @@
 pyrogram
 tgcrypto
 python-dotenv
-aiosqlite
+asyncpg
+fastapi
+uvicorn[standard]
+httpx

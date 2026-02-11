@@ -10,7 +10,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not all([API_ID, API_HASH, BOT_TOKEN]):
     raise ValueError("API_ID, API_HASH, and BOT_TOKEN must be set in the .env file.")
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "ludo_game.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL") # e.g. https://your-app.onrender.com/webhook
 TURN_TIMEOUT = int(os.getenv("TURN_TIMEOUT", 90))
 
 # Colors and Emojis
