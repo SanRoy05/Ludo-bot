@@ -8,7 +8,10 @@ API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not all([API_ID, API_HASH, BOT_TOKEN]):
-    raise ValueError("API_ID, API_HASH, and BOT_TOKEN must be set in the .env file.")
+    raise ValueError(
+        "Missing required environment variables (API_ID, API_HASH, BOT_TOKEN).\n"
+        "Please add them in your Render Service Dashboard -> Environment section."
+    )
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") # e.g. https://your-app.onrender.com/webhook
