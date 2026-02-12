@@ -7,8 +7,10 @@ API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 if not all([API_ID, API_HASH, BOT_TOKEN, DATABASE_URL]):
-    missing = [v for v in ["API_ID", "API_HASH", "BOT_TOKEN", "DATABASE_URL"] if not globals().get(v) and not os.getenv(v)]
+    missing = [v for v in ["API_ID", "API_HASH", "BOT_TOKEN", "DATABASE_URL"] if not os.getenv(v)]
     raise ValueError(
         f"Missing required environment variables: {', '.join(missing)}.\n"
         "Please add them in your Render Service Dashboard -> Environment section.\n"
