@@ -14,7 +14,12 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_cmd(client, message):
-    await help_handler(client, message)
+    if message.chat.type == "private":
+        from handlers.menu import send_dashboard
+        await send_dashboard(client, message)
+    else:
+        # Standard group welcome/help
+        await help_handler(client, message)
 
 @app.on_message(filters.command("help"))
 async def help_cmd(client, message):
@@ -60,3 +65,15 @@ async def callback_query_handler(client, callback_query):
         await skip_turn(game)
         await send_board(client, callback_query.message.chat.id, callback_query.message.id)
         await callback_query.answer("Turn skipped.")
+        
+    elif data == "help:menu":
+        from handlers.menu import help_menu_handler
+        await help_menu_handler(client, callback_query)
+        
+    elif data == "lang:menu":
+        from handlers.menu import lang_menu_handler
+        await lang_menu_handler(client, callback_query)
+        
+    elif data == "menu:back":
+        from handlers.menu import back_to_menu_handler
+        await back_to_menu_handler(client, callback_query)
