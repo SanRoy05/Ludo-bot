@@ -23,6 +23,7 @@ async def send_board(client, chat_id, message_id=None):
     # If dice not rolled
     if game['dice_value'] == 0:
         keyboard.append([types.InlineKeyboardButton("🎲 Roll Dice", callback_data="roll")])
+        keyboard.append([types.InlineKeyboardButton("🛑 Stop Game", callback_data="stop")])
     else:
         # Move buttons for available tokens
         row = []
@@ -32,9 +33,13 @@ async def send_board(client, chat_id, message_id=None):
             if t['position'] == -1 and game['dice_value'] != 6: continue
             
             row.append(types.InlineKeyboardButton(f"Token {i+1}", callback_data=f"move_{i}"))
-        if row: keyboard.append(row)
+        
+        if row:
+            keyboard.append(row)
         else:
             keyboard.append([types.InlineKeyboardButton("Skip Turn (No Moves)", callback_data="skip")])
+        
+        keyboard.append([types.InlineKeyboardButton("🛑 Stop Game", callback_data="stop")])
 
     reply_markup = types.InlineKeyboardMarkup(keyboard)
     
@@ -62,17 +67,18 @@ async def roll_handler(client, callback_query):
     if game['dice_value'] != 0:
         return await callback_query.answer("Dice already rolled!")
 
-    # Dice Animation (3 frames)
-    for _ in range(3):
+    # Dice Animation (2 frames for stability)
+    for _ in range(2):
         fake_val = random.randint(1, 6)
         frame = generate_dice_frame(fake_val)
         try:
             await client.edit_message_media(
                 chat_id, callback_query.message.id,
-                media=types.InputMediaPhoto(frame, caption="Rolling dice...")
+                media=types.InputMediaPhoto(frame, caption="🎲 Rolling...")
             )
-        except: pass
-        await asyncio.sleep(0.3)
+            await asyncio.sleep(0.4)
+        except Exception:
+            break
 
     real_val = random.randint(1, 6)
     await db.update_game_state(game['id'], dice_value=real_val)
@@ -160,3 +166,19 @@ async def move_handler(client, callback_query, token_idx):
 async def skip_turn(game):
     next_turn = (game['current_turn_index'] + 1) % len(game['players'])
     await db.update_game_state(game['id'], current_turn_index=next_turn, dice_value=0)
+
+async def stop_game_handler(client, callback_query):
+    chat_id = callback_query.message.chat.id
+    game = await db.get_game(chat_id)
+    if not game:
+        return await callback_query.answer("Game already closed.")
+    
+    # Check if user is a participant
+    if not any(p['user_id'] == callback_query.from_user.id for p in game['players']):
+        return await callback_query.answer("Only players can stop the game!", show_alert=True)
+
+    await db.close_game(chat_id)
+    await callback_query.message.edit_caption(
+        f"🛑 **Game Stopped** by @{callback_query.from_user.username or callback_query.from_user.first_name}"
+    )
+    await callback_query.answer("Game has been stopped.")

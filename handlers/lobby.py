@@ -12,7 +12,8 @@ async def join_handler(client, message, user=None):
     
     game = await db.get_game(chat_id)
     if not game:
-        game_id = await db.create_game(chat_id)
+        is_team = message.text.startswith("/team") if message.text else False
+        game_id = await db.create_game(chat_id, team_mode=is_team)
         game = await db.get_game(chat_id)
     
     if game['status'] != 'LOBBY':
@@ -32,7 +33,8 @@ async def join_handler(client, message, user=None):
     game = await db.get_game(chat_id)
     players_text = "\n".join([f"{COLORS[p['color']]} @{p['username']}" for p in game['players']])
     
-    text = f"**Ludo Lobby**\n\nPlayers:\n{players_text}\n\nNeed {4 - len(game['players'])} more players to start."
+    mode_str = " (2v2 Team Mode)" if game['team_mode'] else ""
+    text = f"**Ludo Lobby{mode_str}**\n\nPlayers:\n{players_text}\n\nNeed {4 - len(game['players'])} more players to start."
     keyboard = types.InlineKeyboardMarkup([[
         types.InlineKeyboardButton("Join Game", callback_data="join"),
         types.InlineKeyboardButton("Start Game", callback_data="start")

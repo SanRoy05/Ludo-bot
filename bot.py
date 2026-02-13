@@ -25,15 +25,15 @@ async def start_cmd(client, message):
 async def help_cmd(client, message):
     await help_handler(client, message)
 
-@app.on_message(filters.command("staterank"))
+@app.on_message(filters.command(["staterank", "rank"]))
 async def stats_cmd(client, message):
     await stats_handler(client, message)
 
-@app.on_message(filters.command("seasoncredits"))
+@app.on_message(filters.command(["seasoncredits", "credit", "season"]))
 async def credits_cmd(client, message):
     await credits_handler(client, message)
 
-@app.on_message(filters.command("ludo") & filters.group)
+@app.on_message(filters.command(["ludo", "team"]) & filters.group)
 async def ludo_cmd(client, message):
     await join_handler(client, message)
 
@@ -53,6 +53,10 @@ async def callback_query_handler(client, callback_query):
         
     elif data == "roll":
         await roll_handler(client, callback_query)
+        
+    elif data == "stop":
+        from handlers.game import stop_game_handler
+        await stop_game_handler(client, callback_query)
         
     elif data.startswith("move_"):
         token_idx = int(data.split("_")[1])
