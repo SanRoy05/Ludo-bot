@@ -17,6 +17,9 @@ class LudoDB:
     async def init_db(self):
         await self.connect()
         async with self.pool.acquire() as conn:
+            # Drop tables for clean start if schema changed (ensures correct foreign keys)
+            await conn.execute("DROP TABLE IF EXISTS tokens, players, games CASCADE")
+            
             # Games Table
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS games (
