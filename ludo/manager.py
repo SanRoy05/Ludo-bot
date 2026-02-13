@@ -1,6 +1,7 @@
 import json
 import uuid
 import random
+import time
 from typing import Dict, List, Optional
 from .state import GameState, Player, Token, Tournament, Match
 from .rules import get_valid_moves, move_token, is_game_over
@@ -75,7 +76,7 @@ class LudoManager:
              p.color_index = i # Turn order colors
         
         state.current_turn_index = 0
-        state.last_roll_time = 0
+        state.last_roll_time = time.time()
         await db.save_game_state(chat_id, state.to_dict())
         return "Game started! 🎲"
 
@@ -98,6 +99,9 @@ class LudoManager:
             await db.save_game_state(chat_id, state.to_dict())
             return val, msg
             
+            return val, msg
+            
+        state.last_roll_time = time.time()
         await db.save_game_state(chat_id, state.to_dict())
         return val, f"Rolled {val}! Choose a token to move."
 
@@ -130,7 +134,9 @@ class LudoManager:
             state.current_turn_index = (state.current_turn_index + 1) % len(state.players)
             msg = f"Moved token. It's {state.players[state.current_turn_index].first_name}'s turn."
         
+        
         state.dice_value = None
+        state.last_roll_time = time.time()
         await db.save_game_state(chat_id, state.to_dict())
         return msg
 

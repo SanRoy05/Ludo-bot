@@ -2,6 +2,7 @@ import asyncio
 import sys
 import time
 import logging
+import html
 from typing import Dict
 
 # 1. SETUP EVENT LOOP
@@ -51,7 +52,7 @@ async def refresh_game_view(client: Client, message: Message, state):
              await db.save_game_state(state.chat_id, state.to_dict())
              current_p = state.players[state.current_turn_index]
 
-    status_text = f"Turn: {COLORS[current_p.color_index]} **{current_p.first_name}**"
+    status_text = f"Turn: {COLORS[current_p.color_index]} **{html.escape(current_p.first_name)}**"
     if state.dice_value:
         status_text += f" (Rolled: {state.dice_value})"
     
@@ -62,7 +63,7 @@ async def refresh_game_view(client: Client, message: Message, state):
     match_suffix = f":{state.match_id}" if state.match_id else ""
     buttons = []
     if state.dice_value is None:
-        buttons.append([InlineKeyboardButton(f"🎲 Roll Dice ({current_p.first_name})", callback_data=f"ludo:roll:{match_suffix}")])
+        buttons.append([InlineKeyboardButton(f"🎲 Roll Dice ({html.escape(current_p.first_name)})", callback_data=f"ludo:roll:{match_suffix}")])
     else:
         from ludo.rules import get_valid_moves
         valid_moves = get_valid_moves(current_p, state.dice_value)
@@ -189,7 +190,12 @@ async def cmd_start(client, message):
         [InlineKeyboardButton("UPDATES ♪", url="https://t.me/cosysx"), InlineKeyboardButton("🌐 LANGUAGE", callback_data="lang:menu")],
         [InlineKeyboardButton("♡ HELP AND COMMAND ♡", callback_data="help:menu")]
     ])
-    await message.reply_text(caption, reply_markup=keyboard)
+    
+    import os
+    if os.path.exists("banner.png"):
+        await message.reply_photo("banner.png", caption=caption, reply_markup=keyboard)
+    else:
+        await message.reply_text(caption, reply_markup=keyboard)
 
 async def cmd_help(client, message):
     text = (
@@ -220,12 +226,12 @@ async def cmd_ludostate(client, message):
         return await message.reply("No active game. Use /startludo to begin!")
     
     if state.is_lobby:
-        p_list = "\n".join([f"{i+1}. {p.first_name}" for i, p in enumerate(state.players)])
+        p_list = "\n".join([f"{i+1}. {html.escape(p.first_name)}" for i, p in enumerate(state.players)])
         await message.reply(f"🎮 **Ludo Lobby - Waiting for players**\n\n{p_list}")
     else:
         board_text = render_board(state)
         current_p = state.players[state.current_turn_index]
-        text = f"🕹 **Current Game State**\nTurn: {COLORS[current_p.color_index]} **{current_p.first_name}**\n\n<code>{board_text}</code>"
+        text = f"🕹 **Current Game State**\nTurn: {COLORS[current_p.color_index]} **{html.escape(current_p.first_name)}**\n\n<code>{board_text}</code>"
         await message.reply(text, parse_mode=enums.ParseMode.HTML)
 
 async def cmd_join(client, message):
@@ -238,7 +244,7 @@ async def cmd_startludo(client, message):
         return await message.reply("This bot only works in groups!")
     err = await manager.create_lobby(message.chat.id, message.from_user.id, message.from_user.first_name)
     if err: return await message.reply(err)
-    text = f"🎮 **Ludo Lobby**\n\n1. {message.from_user.first_name}\n\n_Minimum 2 players to start._"
+    text = f"🎮 **Ludo Lobby**\n\n1. {html.escape(message.from_user.first_name)}\n\n_Minimum 2 players to start._"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("➕ Join", callback_data="ludo:join"), InlineKeyboardButton("▶️ Start Game", callback_data="ludo:start")]])
     await message.reply(text, reply_markup=keyboard)
 
@@ -280,8 +286,11 @@ async def handle_callback(client, query):
         msg = await manager.join_lobby(chat_id, user_id, user_name)
         await query.answer(msg)
         if "joined" in msg:
-            p_list = "\n".join([f"{i+1}. {p.first_name}" for i, p in enumerate(state.players)])
-            await query.edit_message_text(f"🎮 **Ludo Lobby**\n\n{p_list}", reply_markup=query.message.reply_markup)
+            p_list = "\n".join([f"{i+1}. {html.escape(p.first_name)}" for i, p in enumerate(state.players)])
+            if query.message.photo:
+                await query.edit_message_caption(f"🎮 **Ludo Lobby**\n\n{p_list}", reply_markup=query.message.reply_markup)
+            else:
+                await query.edit_message_text(f"🎮 **Ludo Lobby**\n\n{p_list}", reply_markup=query.message.reply_markup)
     elif action == "start":
         if user_id != state.players[0].user_id:
             return await query.answer("Only the creator can start.", show_alert=True)
