@@ -128,11 +128,23 @@ async def move_handler(client, callback_query, token_idx):
     if not game['team_mode']:
         if all(t['position'] == 99 for t in curr_player['tokens']):
             await callback_query.message.reply(f"🎉 @{curr_player['username']} HAS WON!")
+            # Update winner stats
+            await db.update_user_stats(curr_player['user_id'], curr_player['username'], won=True)
+            # Update other players stats
+            for p in game['players']:
+                if p['user_id'] != curr_player['user_id']:
+                    await db.update_user_stats(p['user_id'], p['username'], won=False)
+            
             await db.close_game(chat_id)
             return
 
     if winner_team:
         await callback_query.message.reply(f"🏆 TEAM {winner_team} HAS WON!")
+        # Update stats for all players
+        for p in game['players']:
+            is_winner = (p['team_id'] == winner_team)
+            await db.update_user_stats(p['user_id'], p['username'], won=is_winner)
+            
         await db.close_game(chat_id)
         return
 

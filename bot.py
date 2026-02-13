@@ -2,18 +2,31 @@ from pyrogram import Client, filters
 from config import API_ID, API_HASH, BOT_TOKEN
 from handlers.lobby import join_handler, start_callback_handler
 from handlers.game import roll_handler, move_handler
+from handlers.stats import help_handler, stats_handler, credits_handler
 
 app = Client(
     "ludo_bot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    plugins=None # We will register manually or use decorators
+    plugins=None
 )
 
 @app.on_message(filters.command("start"))
 async def start_cmd(client, message):
-    await message.reply("Welcome to Ludo Bot! Type /ludo to start a game in a group.")
+    await help_handler(client, message)
+
+@app.on_message(filters.command("help"))
+async def help_cmd(client, message):
+    await help_handler(client, message)
+
+@app.on_message(filters.command("staterank"))
+async def stats_cmd(client, message):
+    await stats_handler(client, message)
+
+@app.on_message(filters.command("seasoncredits"))
+async def credits_cmd(client, message):
+    await credits_handler(client, message)
 
 @app.on_message(filters.command("ludo") & filters.group)
 async def ludo_cmd(client, message):

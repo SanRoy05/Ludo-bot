@@ -14,11 +14,8 @@ class LudoDB:
         if self.pool:
             await self.pool.close()
 
-    async def init_db(self):
-        await self.connect()
-        async with self.pool.acquire() as conn:
-            # Drop tables for clean start if schema changed (ensures correct foreign keys)
-            await conn.execute("DROP TABLE IF EXISTS tokens, players, games CASCADE")
+            # Database is now initialized with correct schema
+            # await conn.execute("DROP TABLE IF EXISTS tokens, players, games CASCADE")
             
             # Games Table
             await conn.execute("""
@@ -55,6 +52,17 @@ class LudoDB:
                     position INTEGER DEFAULT -1,
                     is_finished BOOLEAN DEFAULT FALSE,
                     UNIQUE(player_id, token_index)
+                )
+            """)
+            # Users Stats Table
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id BIGINT PRIMARY KEY,
+                    username TEXT,
+                    matches INTEGER DEFAULT 0,
+                    wins INTEGER DEFAULT 0,
+                    credits INTEGER DEFAULT 1000,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
@@ -109,6 +117,25 @@ class LudoDB:
             cols = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(kwargs.keys())])
             vals = list(kwargs.values())
             await conn.execute(f"UPDATE games SET {cols} WHERE id = $1", game_id, *vals)
+
+    async def update_user_stats(self, user_id, username, won=False):
+        async with self.pool.acquire() as conn:
+            win_inc = 1 if won else 0
+            credit_inc = 100 if won else 10
+            await conn.execute("""
+                INSERT INTO users (user_id, username, matches, wins, credits)
+                VALUES ($1, $2, 1, $3, $4)
+                ON CONFLICT (user_id) DO UPDATE SET
+                    username = EXCLUDED.username,
+                    matches = users.matches + 1,
+                    wins = users.wins + $3,
+                    credits = users.credits + $4
+            """, user_id, username, win_inc, credit_inc)
+
+    async def get_user_stats(self, user_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT *, (SELECT COUNT(*) + 1 FROM users u WHERE u.wins > users.wins) as rank FROM users WHERE user_id = $1", user_id)
+            return dict(row) if row else None
 
     async def close_game(self, chat_id):
         async with self.pool.acquire() as conn:
