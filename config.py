@@ -22,10 +22,10 @@ TURN_TIMEOUT = int(os.getenv("TURN_TIMEOUT", 90))
 
 # Colors and Emojis
 COLORS = {
-    0: "🔴",  # RED
-    1: "🔵",  # BLUE
-    2: "🟡",  # YELLOW
-    3: "🟢",  # GREEN
+    0: "🔴",  # RED (Top-Left)
+    1: "🟢",  # GREEN (Top-Right)
+    2: "🟡",  # YELLOW (Bottom-Right)
+    3: "🔵",  # BLUE (Bottom-Left)
 }
 
 # Ludo Board Constants

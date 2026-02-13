@@ -1,10 +1,11 @@
 from team_logic import can_kill, is_teammate, check_team_victory
 
 def get_start_position(color):
-    return {0: 1, 1: 14, 2: 27, 3: 40}[color]
+    return {0: 10, 1: 49, 2: 36, 3: 23}[color]
 
 def get_entrance_position(color):
-    return (get_start_position(color) - 1) % 52
+    # Entrance is the tile just before turning into home stretch
+    return {0: 11, 1: 50, 2: 37, 3: 24}[color]
 
 def move_token(player, token_idx, dice_value):
     token = player['tokens'][token_idx]

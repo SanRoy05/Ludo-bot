@@ -26,8 +26,8 @@ async def callback_query_handler(client, callback_query):
     if data == "join":
         # Handle join logic directly or via lobby.py
         from handlers.lobby import join_handler
-        # Mock message for join_handler
-        await join_handler(client, callback_query.message)
+        # Pass the callback user explicitly
+        await join_handler(client, callback_query.message, user=callback_query.from_user)
         await callback_query.answer()
         
     elif data == "start":

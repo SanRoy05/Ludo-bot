@@ -3,9 +3,12 @@ from db import db
 from team_logic import get_team_id
 from config import COLORS
 
-async def join_handler(client, message):
+async def join_handler(client, message, user=None):
     chat_id = message.chat.id
-    user = message.from_user
+    user = user or message.from_user
+    
+    if user.is_bot:
+        return
     
     game = await db.get_game(chat_id)
     if not game:
