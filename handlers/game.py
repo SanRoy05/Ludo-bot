@@ -167,18 +167,30 @@ async def skip_turn(game):
     next_turn = (game['current_turn_index'] + 1) % len(game['players'])
     await db.update_game_state(game['id'], current_turn_index=next_turn, dice_value=0)
 
-async def stop_game_handler(client, callback_query):
-    chat_id = callback_query.message.chat.id
+async def stop_game_handler(client, update):
+    is_callback = hasattr(update, "data")
+    message = update.message if is_callback else update
+    chat_id = message.chat.id
+    user = update.from_user
+    
     game = await db.get_game(chat_id)
     if not game:
-        return await callback_query.answer("Game already closed.")
+        if is_callback: await update.answer("Game already closed.")
+        else: await message.reply("No active game to stop.")
+        return
     
     # Check if user is a participant
-    if not any(p['user_id'] == callback_query.from_user.id for p in game['players']):
-        return await callback_query.answer("Only players can stop the game!", show_alert=True)
+    if not any(p['user_id'] == user.id for p in game['players']):
+        if is_callback: await update.answer("Only players can stop the game!", show_alert=True)
+        else: await message.reply("Only players can stop the game!")
+        return
 
     await db.close_game(chat_id)
-    await callback_query.message.edit_caption(
-        f"🛑 **Game Stopped** by @{callback_query.from_user.username or callback_query.from_user.first_name}"
-    )
-    await callback_query.answer("Game has been stopped.")
+    
+    stop_text = f"🛑 **Game Stopped** by @{user.username or user.first_name}"
+    
+    if is_callback:
+        await message.edit_caption(stop_text)
+        await update.answer("Game has been stopped.")
+    else:
+        await message.reply(stop_text)

@@ -23,11 +23,11 @@ async def send_dashboard(client, message):
             )
         ],
         [
-            types.InlineKeyboardButton("SUPPORT", url="https://t.me/your_support"), # Placeholder
-            types.InlineKeyboardButton("❤️ OWNER ❤️", url="https://t.me/your_owner")   # Placeholder
+            types.InlineKeyboardButton("SUPPORT", url="https://t.me/cosysx_community"),
+            types.InlineKeyboardButton("❤️ OWNER ❤️", url="https://t.me/noneQ_0")
         ],
         [
-            types.InlineKeyboardButton("UPDATES ♪", url="https://t.me/your_updates"), # Placeholder
+            types.InlineKeyboardButton("UPDATES ♪", url="https://t.me/cosysx"),
             types.InlineKeyboardButton("🌐 LANGUAGE", callback_data="lang:menu")
         ],
         [
@@ -102,8 +102,8 @@ async def back_to_menu_handler(client, callback_query):
     
     keyboard = types.InlineKeyboardMarkup([
         [types.InlineKeyboardButton("✨ ADD ME TO YOUR GROUP ✨", url=f"https://t.me/{bot_username}?startgroup=true")],
-        [types.InlineKeyboardButton("SUPPORT", url="https://t.me/your_support"), types.InlineKeyboardButton("❤️ OWNER ❤️", url="https://t.me/your_owner")],
-        [types.InlineKeyboardButton("UPDATES ♪", url="https://t.me/your_updates"), types.InlineKeyboardButton("🌐 LANGUAGE", callback_data="lang:menu")],
+        [types.InlineKeyboardButton("SUPPORT", url="https://t.me/cosysx_community"), types.InlineKeyboardButton("❤️ OWNER ❤️", url="https://t.me/noneQ_0")],
+        [types.InlineKeyboardButton("UPDATES ♪", url="https://t.me/cosysx"), types.InlineKeyboardButton("🌐 LANGUAGE", callback_data="lang:menu")],
         [types.InlineKeyboardButton("♡ HELP AND COMMAND ♡", callback_data="help:menu")],
         [types.InlineKeyboardButton("✨ SOURCE ✨", url="https://github.com/your_source")]
     ])

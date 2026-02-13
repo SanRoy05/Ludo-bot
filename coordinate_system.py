@@ -79,7 +79,7 @@ HOME_BASE_COORDS = {
 # (12, 6) -> idx 41
 # (8, 12) -> idx 30
 
-SAFE_ZONE_INDICES = {10, 49, 36, 23, 13, 2, 41, 30}
+SAFE_ZONE_INDICES = {13, 0, 39, 26, 10, 2, 41, 30}
 
 def get_token_pixel_position(color, logical_position, token_index=0):
     if logical_position == -1:

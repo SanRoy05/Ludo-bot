@@ -37,6 +37,11 @@ async def credits_cmd(client, message):
 async def ludo_cmd(client, message):
     await join_handler(client, message)
 
+@app.on_message(filters.command("stop") & filters.group)
+async def stop_cmd(client, message):
+    from handlers.game import stop_game_handler
+    await stop_game_handler(client, message)
+
 @app.on_callback_query()
 async def callback_query_handler(client, callback_query):
     data = callback_query.data

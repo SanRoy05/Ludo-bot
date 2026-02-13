@@ -1,7 +1,7 @@
 from team_logic import can_kill, is_teammate, check_team_victory
 
 def get_start_position(color):
-    return {0: 10, 1: 49, 2: 36, 3: 23}[color]
+    return {0: 13, 1: 0, 2: 39, 3: 26}[color]
 
 def get_entrance_position(color):
     # Entrance is exactly one tile behind the start position
