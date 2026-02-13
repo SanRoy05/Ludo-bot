@@ -60,10 +60,10 @@ HOME_PATH_COORDS = {
 }
 
 HOME_BASE_COORDS = {
-    0: [grid_to_px((x, y)) for x in [(1,1), (1,4), (4,1), (4,4)]], # Red
-    1: [grid_to_px((x, y)) for x in [(10,1), (10,4), (13,1), (13,4)]], # Blue
-    2: [grid_to_px((x, y)) for x in [(10,10), (10,13), (13,10), (13,13)]], # Yellow
-    3: [grid_to_px((x, y)) for x in [(1,10), (1,13), (4,10), (4,13)]], # Green
+    0: [grid_to_px((x, y)) for x, y in [(1,1), (1,4), (4,1), (4,4)]], # Red
+    1: [grid_to_px((x, y)) for x, y in [(10,1), (10,4), (13,1), (13,4)]], # Blue
+    2: [grid_to_px((x, y)) for x, y in [(10,10), (10,13), (13,10), (13,13)]], # Yellow
+    3: [grid_to_px((x, y)) for x, y in [(1,10), (1,13), (4,10), (4,13)]], # Green
 }
 
 SAFE_ZONE_COORDS = {1, 9, 14, 22, 27, 35, 40, 48}
