@@ -146,6 +146,7 @@ async def set_scoped_commands(app: Client):
 
     group_commands = [
         BotCommand("startludo", "Start a Ludo game"),
+        BotCommand("stop", "Stop current Ludo game (admin only)"),
         BotCommand("ludostop", "Stop current Ludo game (admin only)"),
         BotCommand("ludostate", "Show current game state"),
         BotCommand("ludotournament", "Create a Ludo tournament"),
@@ -232,7 +233,8 @@ async def cmd_ludostate(client, message):
         board_text = render_board(state)
         current_p = state.players[state.current_turn_index]
         text = f"🕹 **Current Game State**\nTurn: {COLORS[current_p.color_index]} **{html.escape(current_p.first_name)}**\n\n<code>{board_text}</code>"
-        await message.reply(text, parse_mode=enums.ParseMode.HTML)
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🛑 Stop Game", callback_data="ludo:stop")]])
+        await message.reply(text, reply_markup=keyboard, parse_mode=enums.ParseMode.HTML)
 
 async def cmd_join(client, message):
     chat_id, user_id, user_name = message.chat.id, message.from_user.id, message.from_user.first_name
@@ -245,7 +247,10 @@ async def cmd_startludo(client, message):
     err = await manager.create_lobby(message.chat.id, message.from_user.id, message.from_user.first_name)
     if err: return await message.reply(err)
     text = f"🎮 **Ludo Lobby**\n\n1. {html.escape(message.from_user.first_name)}\n\n_Minimum 2 players to start._"
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("➕ Join", callback_data="ludo:join"), InlineKeyboardButton("▶️ Start Game", callback_data="ludo:start")]])
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Join", callback_data="ludo:join"), InlineKeyboardButton("▶️ Start Game", callback_data="ludo:start")],
+        [InlineKeyboardButton("🛑 Stop Game", callback_data="ludo:stop")]
+    ])
     await message.reply(text, reply_markup=keyboard)
 
 async def cmd_ludorank(client, message):
@@ -319,6 +324,17 @@ async def handle_callback(client, query):
                 # would require a more complex trigger or task queue.
         else:
             await refresh_game_view(client, query.message, state)
+    elif action == "stop":
+        member = await client.get_chat_member(chat_id, user_id)
+        if member.status not in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER]:
+            return await query.answer("Only admins can stop the game!", show_alert=True)
+        
+        await manager.delete_game(chat_id)
+        await query.answer("Game stopped.")
+        if query.message.photo:
+            await query.edit_message_caption("🛑 **Game stopped and lobby cleared.**")
+        else:
+            await query.edit_message_text("🛑 **Game stopped and lobby cleared.**")
 
 async def handle_tourney_callback(client, query):
     data = query.data.split(":")
