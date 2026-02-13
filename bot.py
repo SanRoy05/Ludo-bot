@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from config import API_ID, API_HASH, BOT_TOKEN
 from handlers.lobby import join_handler, start_callback_handler
 from handlers.game import roll_handler, move_handler
@@ -14,7 +14,7 @@ app = Client(
 
 @app.on_message(filters.command("start"))
 async def start_cmd(client, message):
-    if message.chat.type == "private":
+    if message.chat.type == enums.ChatType.PRIVATE:
         from handlers.menu import send_dashboard
         await send_dashboard(client, message)
     else:

@@ -1,4 +1,4 @@
-from pyrogram import types
+from pyrogram import types, enums
 import os
 
 async def send_dashboard(client, message):

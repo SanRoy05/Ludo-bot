@@ -4,8 +4,9 @@ def get_start_position(color):
     return {0: 10, 1: 49, 2: 36, 3: 23}[color]
 
 def get_entrance_position(color):
-    # Entrance is the tile just before turning into home stretch
-    return {0: 11, 1: 50, 2: 37, 3: 24}[color]
+    # Entrance is exactly one tile behind the start position
+    start = get_start_position(color)
+    return (start - 1) % 52
 
 def move_token(player, token_idx, dice_value):
     token = player['tokens'][token_idx]
@@ -59,8 +60,8 @@ def get_killing_impact(game, attacker_color, new_pos):
     if new_pos < 0 or new_pos > 51: return [] # Home stretch/base is safe
     
     # Safe zones (stars)
-    from coordinate_system import SAFE_ZONE_COORDS
-    if new_pos in SAFE_ZONE_COORDS: return []
+    from coordinate_system import SAFE_ZONE_INDICES
+    if new_pos in SAFE_ZONE_INDICES: return []
     
     to_reset = []
     for p_idx, player in enumerate(game['players']):
