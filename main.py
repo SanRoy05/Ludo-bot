@@ -6,17 +6,27 @@ from bot import app as bot_app
 from db import db
 from config import WEBHOOK_URL
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 fastapi_app = FastAPI()
 
 @fastapi_app.on_event("startup")
 async def startup_event():
-    # Initialize DB
-    await db.init_db()
-    # Start bot in webhook mode
-    await bot_app.start()
-    if WEBHOOK_URL:
-        await bot_app.set_webhook(f"{WEBHOOK_URL}/webhook")
-        print(f"Webhook set to {WEBHOOK_URL}/webhook")
+    try:
+        # Initialize DB
+        await db.init_db()
+        logger.info("Database initialized.")
+        # Start bot
+        await bot_app.start()
+        logger.info("Bot started.")
+        if WEBHOOK_URL:
+            await bot_app.set_webhook(f"{WEBHOOK_URL}/webhook")
+            logger.info(f"Webhook set to {WEBHOOK_URL}/webhook")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}", exc_info=True)
+        raise e
 
 @fastapi_app.on_event("shutdown")
 async def shutdown_event():
