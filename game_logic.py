@@ -1,12 +1,24 @@
 from team_logic import can_kill, is_teammate, check_team_victory
 
 def get_start_position(color):
-    return {0: 13, 1: 0, 2: 39, 3: 26}[color]
+    """
+    Returns the starting position for each color when exiting base with a 6.
+    Based on standard Ludo: each color enters the main path at a specific position.
+    These are evenly distributed around the 52-position main path.
+    Red (0): position 1 - starts from top-left, enters at top middle area
+    Green (1): position 14 - starts from top-right, enters at left side
+    Yellow (2): position 27 - starts from bottom-right, enters at bottom area  
+    Blue (3): position 40 - starts from bottom-left, enters at right side
+    """
+    return {0: 1, 1: 14, 2: 27, 3: 40}[color]
 
 def get_entrance_position(color):
-    # Entrance is exactly one tile behind the start position
+    """
+    Returns the position where a token enters its home stretch.
+    This is exactly 50 steps from the starting position.
+    """
     start = get_start_position(color)
-    return (start - 1) % 52
+    return (start + 50) % 52
 
 def move_token(player, token_idx, dice_value):
     token = player['tokens'][token_idx]

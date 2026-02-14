@@ -67,19 +67,20 @@ HOME_BASE_COORDS = {
     3: [grid_to_px((x, y)) for x, y in [(1.5, 10.5), (1.5, 12.5), (3.5, 10.5), (3.5, 12.5)]], # Blue (BL)
 }
 
-# Adjusted Safe Zones based on image stars:
-# Indices in MAIN_PATH_GRID:
-# Red Start: (1, 6) -> idx 10
-# Green Start: (8, 1) -> idx 49
-# Yellow Start: (13, 8) -> idx 36
-# Blue Start: (6, 13) -> idx 23
-# Additional Stars:
-# (2, 8) -> idx 13
-# (6, 2) -> idx 2
-# (12, 6) -> idx 41
-# (8, 12) -> idx 30
+# Safe Zones (star positions) based on standard Ludo rules:
+# Each color has a starting position (where tokens enter from base with a 6)
+# Plus safe positions around the board
+# Based on the grid layout and main path:
+# - Position 1: (6,1) - Red starting position (2 steps after top)
+# - Position 9: (2,6) - Position before Red home entrance 
+# - Position 14: (0,8) - Green starting position (left bridge bottom)
+# - Position 22: (6,12) - Position before Green home entrance
+# - Position 27: (8,9) - Yellow starting position (right side going up)
+# - Position 35: (12,8) - Position before Yellow home entrance
+# - Position 40: (14,6) - Blue starting position (right bridge top)
+# - Position 48: (8,2) - Position before Blue home entrance
 
-SAFE_ZONE_INDICES = {13, 0, 39, 26, 10, 2, 41, 30}
+SAFE_ZONE_INDICES = {1, 9, 14, 22, 27, 35, 40, 48}
 
 def get_token_pixel_position(color, logical_position, token_index=0):
     if logical_position == -1:

@@ -27,6 +27,7 @@ class LudoDB:
                     status TEXT DEFAULT 'LOBBY',
                     current_turn_index INTEGER DEFAULT 0,
                     dice_value INTEGER DEFAULT 0,
+                    consecutive_sixes INTEGER DEFAULT 0,
                     team_mode BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )

@@ -81,20 +81,45 @@ async def roll_handler(client, callback_query):
             break
 
     real_val = random.randint(1, 6)
-    await db.update_game_state(game['id'], dice_value=real_val)
+    
+    # Track consecutive 6s
+    consecutive_sixes = game.get('consecutive_sixes', 0)
+    if real_val == 6:
+        consecutive_sixes += 1
+    else:
+        consecutive_sixes = 0
+    
+    await db.update_game_state(game['id'], dice_value=real_val, consecutive_sixes=consecutive_sixes)
+    
+    # Three 6s Rule: Turn immediately ends after third consecutive 6
+    if consecutive_sixes >= 3:
+        await callback_query.answer(f"You rolled your 3rd consecutive 6! Turn ended.", show_alert=True)
+        await asyncio.sleep(1.5)
+        # Reset consecutive 6s and skip turn
+        await db.update_game_state(game['id'], consecutive_sixes=0)
+        await skip_turn(game)
+        await send_board(client, chat_id, callback_query.message.id)
+        return
     
     # Check if any moves possible
     any_possible = False
     for t in curr_player['tokens']:
-        if t['position'] == -1 and real_val == 6: any_possible = True
-        elif 0 <= t['position'] <= 57:
-            # Check if move stays within home
-            if t['position'] + real_val <= 58: any_possible = True
+        if t['position'] == -1 and real_val == 6: 
+            any_possible = True
+        elif 0 <= t['position'] <= 51:
+            # Check if move stays within bounds
+            any_possible = True
+        elif 52 <= t['position'] <= 57:
+            # Check if can move in home stretch
+            if t['position'] + real_val <= 58:
+                any_possible = True
             
     if not any_possible:
         # Auto-skip if no moves
         await callback_query.answer(f"You rolled {real_val}, but no moves possible!", show_alert=True)
         await asyncio.sleep(1)
+        # Reset consecutive 6s when turn ends
+        await db.update_game_state(game['id'], consecutive_sixes=0)
         await skip_turn(game)
         await send_board(client, chat_id, callback_query.message.id)
     else:
@@ -165,7 +190,7 @@ async def move_handler(client, callback_query, token_idx):
 
 async def skip_turn(game):
     next_turn = (game['current_turn_index'] + 1) % len(game['players'])
-    await db.update_game_state(game['id'], current_turn_index=next_turn, dice_value=0)
+    await db.update_game_state(game['id'], current_turn_index=next_turn, dice_value=0, consecutive_sixes=0)
 
 async def stop_game_handler(client, update):
     is_callback = hasattr(update, "data")
