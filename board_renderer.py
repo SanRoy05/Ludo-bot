@@ -31,7 +31,8 @@ def generate_base_board():
     draw = ImageDraw.Draw(img)
     u = UNIT_SIZE
     
-    # Red, Green, Yellow, Blue (TL, TR, BR, BL)
+    # Updated Colors mapping to match standard layout and image:
+    # 0: Red (BL), 1: Green (BR), 2: Yellow (TR), 3: Blue (TL)
     colors = {
         0: (231, 76, 60),  # Red
         1: (46, 204, 113), # Green
@@ -39,18 +40,24 @@ def generate_base_board():
         3: (52, 152, 219)  # Blue
     }
     
-    # Bases
-    draw.rectangle([0, 0, 6*u, 6*u], fill=colors[0])
-    draw.rectangle([9*u, 0, 15*u, 6*u], fill=colors[1])
-    draw.rectangle([9*u, 9*u, 15*u, 15*u], fill=colors[2])
-    draw.rectangle([0, 9*u, 6*u, 15*u], fill=colors[3])
+    # Bases - Re-positioned to match the image:
+    # Blue: Top-Left, Yellow: Top-Right, Green: Bottom-Right, Red: Bottom-Left
+    draw.rectangle([0, 0, 6*u, 6*u], fill=colors[3])      # Blue (TL)
+    draw.rectangle([9*u, 0, 15*u, 6*u], fill=colors[2])   # Yellow (TR)
+    draw.rectangle([9*u, 9*u, 15*u, 15*u], fill=colors[1]) # Green (BR)
+    draw.rectangle([0, 9*u, 6*u, 15*u], fill=colors[0])    # Red (BL)
     
     # White base centers with circular slots
-    for b_idx, base in enumerate([(u,u), (10*u,u), (10*u,10*u), (u,10*u)]):
-        draw.rectangle([base[0], base[1], base[0]+4*u, base[1]+4*u], fill=(255,255,255))
+    # Base positions: TL(3), TR(2), BR(1), BL(0)
+    for b_idx, base in enumerate([(0,0), (9*u,0), (9*u,9*u), (0,9*u)]):
+        # b_idx mapping: 0:Blue(TL), 1:Yellow(TR), 2:Green(BR), 3:Red(BL)? No.
+        # Let's use explicit color mapping for base slots:
+        color_order = [3, 2, 1, 0] # TL, TR, BR, BL
+        c_idx = color_order[b_idx]
+        draw.rectangle([base[0]+u, base[1]+u, base[0]+5*u, base[1]+5*u], fill=(255,255,255))
         # Draw 4 circular slots
-        for px, py in HOME_BASE_COORDS[b_idx]:
-            draw.ellipse([px-35, py-35, px+35, py+35], outline=colors[b_idx], width=3)
+        for px, py in HOME_BASE_COORDS[c_idx]:
+            draw.ellipse([px-35, py-35, px+35, py+35], outline=colors[c_idx], width=3)
 
     # Path Grid
     for x in range(15):
@@ -59,30 +66,30 @@ def generate_base_board():
                 if not (6 <= x <= 8 and 6 <= y <= 8):
                     draw.rectangle([x*u, y*u, (x+1)*u, (y+1)*u], outline=(220, 220, 220))
 
-    # Home Stretches
+    # Home Stretches - Updated to match new layout:
     for i in range(1, 7):
-        draw.rectangle([i*u, 7*u, (i+1)*u, 8*u], fill=colors[0]) # Red (Left arm)
-        draw.rectangle([7*u, i*u, 8*u, (i+1)*u], fill=colors[1]) # Green (Top arm)
-        draw.rectangle([(14-i)*u, 7*u, (15-i)*u, 8*u], fill=colors[2]) # Yellow (Right arm)
-        draw.rectangle([7*u, (14-i)*u, 8*u, (15-i)*u], fill=colors[3]) # Blue (Bottom arm)
+        draw.rectangle([7*u, (14-i)*u, 8*u, (15-i)*u], fill=colors[0]) # Red (Bottom arm)
+        draw.rectangle([(14-i)*u, 7*u, (15-i)*u, 8*u], fill=colors[1]) # Green (Right arm)
+        draw.rectangle([7*u, i*u, 8*u, (i+1)*u], fill=colors[2])       # Yellow (Top arm)
+        draw.rectangle([i*u, 7*u, (i+1)*u, 8*u], fill=colors[3])       # Blue (Left arm)
 
     # Safe Zone Stars
     for idx in SAFE_ZONE_INDICES:
         px, py = MAIN_PATH_COORDS[idx]
         draw_star(draw, px, py, 20, (255, 255, 255))
 
-    # Entry Arrows
-    draw_arrow(draw, 0.5*u, 7.5*u, 'right', colors[0])
-    draw_arrow(draw, 7.5*u, 0.5*u, 'down', colors[1])
-    draw_arrow(draw, 14.5*u, 7.5*u, 'left', colors[2])
-    draw_arrow(draw, 7.5*u, 14.5*u, 'up', colors[3])
+    # Entry Arrows - Updated directions for new color positions:
+    draw_arrow(draw, 7.5*u, 14.5*u, 'up', colors[0])    # Red (Bottom)
+    draw_arrow(draw, 14.5*u, 7.5*u, 'left', colors[1])  # Green (Right)
+    draw_arrow(draw, 7.5*u, 0.5*u, 'down', colors[2])   # Yellow (Top)
+    draw_arrow(draw, 0.5*u, 7.5*u, 'right', colors[3])  # Blue (Left)
 
-    # Center Finish
+    # Center Finish - Updated colors for triangles to match the arm colors:
     draw.rectangle([6*u, 6*u, 9*u, 9*u], fill=(255, 255, 255))
-    draw.polygon([(7.5*u, 7.5*u), (6*u, 6*u), (6*u, 9*u)], fill=colors[0]) # Left
-    draw.polygon([(7.5*u, 7.5*u), (6*u, 6*u), (9*u, 6*u)], fill=colors[1]) # Top
-    draw.polygon([(7.5*u, 7.5*u), (9*u, 6*u), (9*u, 9*u)], fill=colors[2]) # Right
-    draw.polygon([(7.5*u, 7.5*u), (6*u, 9*u), (9*u, 9*u)], fill=colors[3]) # Bottom
+    draw.polygon([(7.5*u, 7.5*u), (6*u, 9*u), (9*u, 9*u)], fill=colors[0]) # Bottom (Red)
+    draw.polygon([(7.5*u, 7.5*u), (9*u, 6*u), (9*u, 9*u)], fill=colors[1]) # Right (Green)
+    draw.polygon([(7.5*u, 7.5*u), (6*u, 6*u), (9*u, 6*u)], fill=colors[2]) # Top (Yellow)
+    draw.polygon([(7.5*u, 7.5*u), (6*u, 6*u), (6*u, 9*u)], fill=colors[3]) # Left (Blue)
 
     return img
 
