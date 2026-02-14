@@ -72,17 +72,26 @@ async def send_board(client, chat_id, message_id=None):
 
 async def roll_handler(client, callback_query):
     chat_id = callback_query.message.chat.id
-    game = await db.get_game(chat_id)
     
-    curr_player = game['players'][game['current_turn_index']]
-    if callback_query.from_user.id != curr_player['user_id']:
-        return await callback_query.answer("It's not your turn!", show_alert=True)
-        
-    if game['dice_value'] != 0:
-        return await callback_query.answer("Dice already rolled!")
+    try:
+        game = await db.get_game(chat_id)
+        if not game:
+            return await callback_query.answer("Game not found!")
+            
+        curr_player = game['players'][game['current_turn_index']]
+        if callback_query.from_user.id != curr_player['user_id']:
+            return await callback_query.answer("It's not your turn!", show_alert=True)
+            
+        if game['dice_value'] != 0:
+            return await callback_query.answer("Dice already rolled!")
 
-    # Dice Animation (2 frames for stability)
-    for _ in range(2):
+        # IMMEDIATE LOCK: prevented duplicate rolls by setting a temp rolling state in DB
+        await db.update_game_state(game['id'], dice_value=-1)
+        
+        # Immediate feedback to the user
+        await callback_query.answer("🎲 Rolling...")
+
+        # Single frame animation to avoid FloodWait (rate limiting)
         fake_val = random.randint(1, 6)
         frame = generate_dice_frame(fake_val)
         try:
@@ -90,66 +99,67 @@ async def roll_handler(client, callback_query):
                 chat_id, callback_query.message.id,
                 media=types.InputMediaPhoto(frame, caption="🎲 Rolling...")
             )
-            await asyncio.sleep(0.4)
+            await asyncio.sleep(0.3) # Very brief pause
         except Exception:
-            break
+            pass # Continue even if animation fails
 
-    real_val = random.randint(1, 6)
-    
-    # Track consecutive 6s
-    consecutive_sixes = game.get('consecutive_sixes', 0)
-    if real_val == 6:
-        consecutive_sixes += 1
-    else:
-        consecutive_sixes = 0
-    
-    await db.update_game_state(game['id'], dice_value=real_val, consecutive_sixes=consecutive_sixes)
-    
-    # Notify all players of the dice roll
-    try:
-        dice_emoji = "🎲"
-        player_name = curr_player.get('username') or 'Player'
-        await client.send_message(
-            chat_id,
-            f"{dice_emoji} **@{player_name}** rolled a **{real_val}**!",
-            disable_notification=True
-        )
-    except Exception:
-        pass  # Don't fail if notification fails
-    
-    # Three 6s Rule: Turn immediately ends after third consecutive 6
-    if consecutive_sixes >= 3:
-        await callback_query.answer(f"You rolled your 3rd consecutive 6! Turn ended.", show_alert=True)
-        await asyncio.sleep(1.5)
-        # Reset consecutive 6s and skip turn
-        await db.update_game_state(game['id'], consecutive_sixes=0)
-        await skip_turn(game)
-        await send_board(client, chat_id, callback_query.message.id)
-        return
-    
-    # Check if any moves possible
-    any_possible = False
-    for t in curr_player['tokens']:
-        if t['position'] == -1 and real_val == 6: 
-            any_possible = True
-        elif 0 <= t['position'] <= 51:
-            # Check if move stays within bounds
-            any_possible = True
-        elif 52 <= t['position'] <= 57:
-            # Check if can move in home stretch
-            if t['position'] + real_val <= 58:
+        real_val = random.randint(1, 6)
+        
+        # Track consecutive 6s
+        consecutive_sixes = game.get('consecutive_sixes', 0)
+        if real_val == 6:
+            consecutive_sixes += 1
+        else:
+            consecutive_sixes = 0
+        
+        await db.update_game_state(game['id'], dice_value=real_val, consecutive_sixes=consecutive_sixes)
+        
+        # Notify all players of the dice roll
+        try:
+            dice_emoji = "🎲"
+            player_name = curr_player.get('username') or 'Player'
+            await client.send_message(
+                chat_id,
+                f"{dice_emoji} **@{player_name}** rolled a **{real_val}**!",
+                disable_notification=True
+            )
+        except Exception:
+            pass  # Don't fail if notification fails
+        
+        # Three 6s Rule: Turn immediately ends after third consecutive 6
+        if consecutive_sixes >= 3:
+            await callback_query.message.reply(f"🚫 @{curr_player['username']} rolled 3 consecutive 6s! Turn skipped.")
+            await db.update_game_state(game['id'], consecutive_sixes=0)
+            await skip_turn(game)
+            return await send_board(client, chat_id, callback_query.message.id)
+        
+        # Check if any moves possible
+        any_possible = False
+        for t in curr_player['tokens']:
+            if t['position'] == -1 and real_val == 6: 
                 any_possible = True
+            elif 0 <= t['position'] <= 51:
+                any_possible = True
+            elif 52 <= t['position'] <= 57:
+                if t['position'] + real_val <= 58:
+                    any_possible = True
+                
+        if not any_possible:
+            await callback_query.message.reply(f"😅 @{curr_player['username']} rolled {real_val}, but no moves are possible!")
+            await db.update_game_state(game['id'], consecutive_sixes=0)
+            await skip_turn(game)
             
-    if not any_possible:
-        # Auto-skip if no moves
-        await callback_query.answer(f"You rolled {real_val}, but no moves possible!", show_alert=True)
-        await asyncio.sleep(1)
-        # Reset consecutive 6s when turn ends
-        await db.update_game_state(game['id'], consecutive_sixes=0)
-        await skip_turn(game)
         await send_board(client, chat_id, callback_query.message.id)
-    else:
-        await send_board(client, chat_id, callback_query.message.id)
+
+    except Exception as e:
+        # Emergency reset of state if something fails during the process
+        try:
+            game = await db.get_game(chat_id)
+            if game and game['dice_value'] == -1:
+                await db.update_game_state(game['id'], dice_value=0)
+            await callback_query.answer("⚠️ Roll failed. Please try again.", show_alert=True)
+        except:
+            pass
 
 async def move_handler(client, callback_query, token_idx):
     chat_id = callback_query.message.chat.id
