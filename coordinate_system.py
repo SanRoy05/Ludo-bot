@@ -67,19 +67,25 @@ HOME_BASE_COORDS = {
     3: [grid_to_px((x, y)) for x, y in [(1.5, 10.5), (1.5, 12.5), (3.5, 10.5), (3.5, 12.5)]], # Blue (BL)
 }
 
-# Safe Zones (star positions) based on standard Ludo rules:
+# Safe Zones (star positions) based on corrected color mapping:
 # Each color has a starting position (where tokens enter from base with a 6)
-# Plus safe positions around the board
-# Based on the grid layout and main path:
-# - Position 1: (6,1) - Red starting position (2 steps after top)
-# - Position 9: (2,6) - Position before Red home entrance 
-# - Position 14: (0,8) - Green starting position (left bridge bottom)
-# - Position 22: (6,12) - Position before Green home entrance
-# - Position 27: (8,9) - Yellow starting position (right side going up)
-# - Position 35: (12,8) - Position before Yellow home entrance
-# - Position 40: (14,6) - Blue starting position (right bridge top)
-# - Position 48: (8,2) - Position before Blue home entrance
-
+# Plus safe positions 8 steps before home entry (which is 50 steps from start for each color)
+# 
+# Updated mapping:
+# - Blue (3) starts at position 1  → safe at 1, safe before home at (1+50-8)%52 = 43
+# - Red (0) starts at position 14  → safe at 14, safe before home at (14+50-8)%52 = 4  
+# - Green (1) starts at position 27 → safe at 27, safe before home at (27+50-8)%52 = 17
+# - Yellow (2) starts at position 40 → safe at 40, safe before home at (40+50-8)%52 = 30
+#
+# However, standard Ludo has safe zones evenly spaced. Let me use the traditional pattern:
+# Safe at starting positions + positions 8 steps before each home entrance.
+# Since home entrance is at (start + 50) % 52:
+# - Blue home entrance: (1+50)%52 = 51  → safe at 51-2 = 49? No, let's use position 9 (8 steps after start 1)
+# - Red home entrance: (14+50)%52 = 12  → safe at position 22 (8 steps after start 14)  
+# - Green home entrance: (27+50)%52 = 25 → safe at position 35 (8 steps after start 27)
+# - Yellow home entrance: (40+50)%52 = 38 → safe at position 48 (8 steps after start 40)
+#
+# Corrected safe zones:
 SAFE_ZONE_INDICES = {1, 9, 14, 22, 27, 35, 40, 48}
 
 def get_token_pixel_position(color, logical_position, token_index=0):

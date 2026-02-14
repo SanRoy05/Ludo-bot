@@ -3,14 +3,17 @@ from team_logic import can_kill, is_teammate, check_team_victory
 def get_start_position(color):
     """
     Returns the starting position for each color when exiting base with a 6.
-    Based on standard Ludo: each color enters the main path at a specific position.
-    These are evenly distributed around the 52-position main path.
-    Red (0): position 1 - starts from top-left, enters at top middle area
-    Green (1): position 14 - starts from top-right, enters at left side
-    Yellow (2): position 27 - starts from bottom-right, enters at bottom area  
-    Blue (3): position 40 - starts from bottom-left, enters at right side
+    Based on standard Ludo board layout with clockwise movement.
+    
+    Color mapping based on visual board positions:
+    - Blue (3): Top-left quadrant → starts at position 1 (arrow pointing right, enters from left)
+    - Yellow (2): Top-right quadrant → starts at position 40 (arrow pointing down, enters from top-right)
+    - Red (0): Bottom-left quadrant → starts at position 14 (arrow pointing up, enters from bottom-left)
+    - Green (1): Bottom-right quadrant → starts at position 27 (arrow pointing left, enters from bottom-right)
+    
+    Path starts at (6,0) and goes clockwise around the 52-position main path.
     """
-    return {0: 1, 1: 14, 2: 27, 3: 40}[color]
+    return {0: 14, 1: 27, 2: 40, 3: 1}[color]
 
 def get_entrance_position(color):
     """

@@ -10,11 +10,14 @@ async def join_handler(client, message, user=None):
     if user.is_bot:
         return
     
-    game = await db.get_game(chat_id)
-    if not game:
-        is_team = message.text.startswith("/team") if message.text else False
-        game_id = await db.create_game(chat_id, team_mode=is_team)
+    try:
         game = await db.get_game(chat_id)
+        if not game:
+            is_team = message.text.startswith("/team") if message.text else False
+            game_id = await db.create_game(chat_id, team_mode=is_team)
+            game = await db.get_game(chat_id)
+    except Exception as e:
+        return await message.reply("❌ Error creating game. Please try again.")
     
     if game['status'] != 'LOBBY':
         return await message.reply("Game already in progress.")
