@@ -2,26 +2,21 @@ from team_logic import can_kill, is_teammate, check_team_victory
 
 def get_start_position(color):
     """
-    Returns the starting position for each color when exiting base with a 6.
-    Based on standard Ludo board layout with clockwise movement.
-    
-    Color mapping based on visual board positions:
-    - Blue (3): Top-left quadrant → starts at position 1 (arrow pointing right, enters from left)
-    - Yellow (2): Top-right quadrant → starts at position 40 (arrow pointing down, enters from top-right)
-    - Red (0): Bottom-left quadrant → starts at position 14 (arrow pointing up, enters from bottom-left)
-    - Green (1): Bottom-right quadrant → starts at position 27 (arrow pointing left, enters from bottom-right)
-    
-    Path starts at (6,0) and goes clockwise around the 52-position main path.
+    Returns the starting position for each color based on the 52-step path.
+    Mapping (matching user board image):
+    - Red (0): Bottom-left quadrant → starts at index 23 (grid 6, 13)
+    - Green (1): Bottom-right quadrant → starts at index 36 (grid 13, 8)
+    - Yellow (2): Top-right quadrant → starts at index 49 (grid 8, 1)
+    - Blue (3): Top-left quadrant → starts at index 10 (grid 1, 6)
     """
-    return {0: 14, 1: 27, 2: 40, 3: 1}[color]
+    return {0: 23, 1: 36, 2: 49, 3: 10}[color]
 
 def get_entrance_position(color):
     """
-    Returns the position where a token enters its home stretch.
-    This is exactly 50 steps from the starting position.
+    Returns the position index (on the 52-step path) where a token turns into home.
+    Matches the arrow positions in the image: Blue:12, Red:25, Green:38, Yellow:51.
     """
-    start = get_start_position(color)
-    return (start + 50) % 52
+    return {0: 25, 1: 38, 2: 51, 3: 12}[color]
 
 def move_token(player, token_idx, dice_value):
     token = player['tokens'][token_idx]
@@ -37,22 +32,24 @@ def move_token(player, token_idx, dice_value):
         return 99, False
     
     if 0 <= current_pos <= 51:
-        # Calculate steps to home entrance
-        entrance = get_entrance_position(color)
+        # Calculate steps remaining on main path
+        # In Ludo, you exit main path at the threshold.
+        # Thresholds: B:11, R:24, G:37, Y:50
+        threshold = get_entrance_position(color)
         
-        # We need to know how many steps the token has already taken to avoid infinite loops
-        # Since we don't store steps_taken, we calculate distance from start
-        start = get_start_position(color)
-        dist_from_start = (current_pos - start) % 52
-        
-        remaining_main = 51 - dist_from_start
-        
-        if dice_value <= remaining_main:
+        # Steps from current to threshold (clockwise)
+        if current_pos <= threshold:
+            steps_to_threshold = threshold - current_pos
+        else:
+            steps_to_threshold = (52 - current_pos) + threshold
+            
+        if dice_value <= steps_to_threshold:
             return (current_pos + dice_value) % 52, False
         else:
             # Entering home stretch
-            steps_into_home = dice_value - remaining_main
-            new_pos = 51 + steps_into_home
+            steps_into_home = dice_value - steps_to_threshold
+            # Home path starts at 52 (index 0 of home stretch)
+            new_pos = 51 + steps_into_home 
             if new_pos > 57:
                 if new_pos == 58: return 99, True # Exactly finished
                 return current_pos, False # Too high

@@ -30,7 +30,7 @@ COLORS = {
 
 # Ludo Board Constants
 BOARD_SIZE = 15
-SAFE_POSITIONS = [1, 9, 14, 22, 27, 35, 40, 48]
-HOME_THRESHOLD = 51  # Position before entering home path
+SAFE_POSITIONS = [10, 15, 23, 28, 36, 41, 49, 2]
+HOME_THRESHOLD = 51  # Not used anymore by the new threshold logic but kept for safety
 HOME_PATH_LENGTH = 6
 TOTAL_PATH_LENGTH = 57 # 51 + 6

@@ -93,7 +93,22 @@ def generate_base_board():
 
     return img
 
-BASE_BOARD_IMG = generate_base_board()
+import os
+
+def load_base_board():
+    """Loads a custom board image if exists, otherwise generates one."""
+    if os.path.exists("playing_board.png"):
+        try:
+            img = Image.open("playing_board.png").convert('RGB')
+            # Ensure it's 1000x1000 to match coordinate system
+            if img.size != (1000, 1000):
+                img = img.resize((1000, 1000), Image.LANCZOS)
+            return img
+        except:
+            pass
+    return generate_base_board()
+
+BASE_BOARD_IMG = load_base_board()
 
 def draw_glow(draw, x, y, color):
     for i in range(10, 40, 5):
@@ -102,6 +117,13 @@ def draw_glow(draw, x, y, color):
         draw.ellipse([x-i, y-i, x+i, y+i], fill=glow_color)
 
 def render_board(game_state):
+    # Re-verify if playing_board.png was added since last load
+    global BASE_BOARD_IMG
+    if not hasattr(render_board, "bg_loaded") or not render_board.bg_loaded:
+        if os.path.exists("playing_board.png"):
+            BASE_BOARD_IMG = load_base_board()
+            render_board.bg_loaded = True
+
     img = BASE_BOARD_IMG.copy()
     overlay = Image.new('RGBA', img.size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(overlay)
@@ -121,7 +143,7 @@ def render_board(game_state):
             if pos_key not in occupations: occupations[pos_key] = []
             occupations[pos_key].append((p_idx, t_idx))
 
-    # Glow
+    # Glow for current player's tokens
     curr_turn = game_state.get('current_turn_index', 0)
     if curr_turn < len(game_state['players']):
         curr_player = game_state['players'][curr_turn]
@@ -138,13 +160,14 @@ def render_board(game_state):
         
         for i, (p_idx, t_idx) in enumerate(occupants):
             p_color = game_state['players'][p_idx]['color']
-            if pos == -1:
-                px, py = get_token_pixel_position(p_color, pos, t_idx)
-            else:
-                base_px, base_py = get_token_pixel_position(p_color, pos)
-                off_x = (i - (count-1)/2) * 15 if count > 1 else 0
-                off_y = (i - (count-1)/2) * 5 if count > 1 else 0
-                px, py = base_px + off_x, base_py + off_y
+            base_px, base_py = get_token_pixel_position(p_color, pos, t_idx)
+            
+            # Spread tokens slightly if multiple on one spot (except base)
+            px, py = base_px, base_py
+            if pos != -1 and count > 1:
+                off_x = (i - (count-1)/2) * 15
+                off_y = (i - (count-1)/2) * 15
+                px, py = px + off_x, py + off_y
             
             # Shadow
             draw.ellipse([px-22, py-22+4, px+22, py+22+4], fill=(0, 0, 0, 60))
@@ -157,12 +180,14 @@ def render_board(game_state):
 
     img.paste(overlay, (0, 0), overlay)
     draw_final = ImageDraw.Draw(img)
-    try: font = ImageFont.truetype("arial.ttf", 30)
+    try: font = ImageFont.truetype("arial.ttf", 35)
     except: font = ImageFont.load_default()
     
     if curr_turn < len(game_state['players']):
         curr_p = game_state['players'][curr_turn]
-        draw_final.text((20, 20), f"Turn: @{curr_p['username']}", fill=(50, 50, 50), font=font)
+        # Semi-transparent bar for text readability if needed
+        draw_final.rectangle([10, 10, 400, 60], fill=(255, 255, 255, 180))
+        draw_final.text((20, 15), f"Turn: @{curr_p['username']}", fill=(0, 0, 0), font=font)
     
     buf = io.BytesIO()
     img.save(buf, format='PNG')
