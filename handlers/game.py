@@ -230,24 +230,39 @@ async def stop_game_handler(client, update):
     chat_id = message.chat.id
     user = update.from_user
     
-    game = await db.get_game(chat_id)
-    if not game:
-        if is_callback: await update.answer("Game already closed.")
-        else: await message.reply("No active game to stop.")
-        return
-    
-    # Check if user is a participant
-    if not any(p['user_id'] == user.id for p in game['players']):
-        if is_callback: await update.answer("Only players can stop the game!", show_alert=True)
-        else: await message.reply("Only players can stop the game!")
-        return
+    try:
+        game = await db.get_game(chat_id)
+        if not game:
+            if is_callback: await update.answer("Game already closed.")
+            else: await message.reply("No active game to stop.")
+            return
+        
+        # Robust check: cast to int to prevent any JSON/DB type mismatch
+        is_participant = any(int(p['user_id']) == int(user.id) for p in game['players'])
+        
+        if not is_participant:
+            errMsg = "Only players can stop the game!"
+            if is_callback: await update.answer(errMsg, show_alert=True)
+            else: await message.reply(errMsg)
+            return
 
-    await db.close_game(chat_id)
-    
-    stop_text = f"🛑 **Game Stopped** by @{user.username or user.first_name}"
-    
-    if is_callback:
-        await message.edit_caption(stop_text)
-        await update.answer("Game has been stopped.")
-    else:
-        await message.reply(stop_text)
+        await db.close_game(chat_id)
+        
+        stop_text = f"🛑 **Game Stopped** by @{user.username or user.first_name}"
+        
+        if is_callback:
+            try:
+                # Use edit_message_caption for InputMediaPhoto (standard for send_board)
+                await client.edit_message_caption(chat_id, message.id, caption=stop_text)
+                await update.answer("Game has been stopped.")
+            except Exception as e:
+                # Fallback to a new message if edit fails
+                await message.reply(stop_text)
+                await update.answer()
+        else:
+            await message.reply(stop_text)
+            
+    except Exception as e:
+        print(f"Stop Error: {e}")
+        if is_callback: await update.answer("⚠️ Error stopping game.", show_alert=True)
+        else: await message.reply("⚠️ Error stopping game.")
