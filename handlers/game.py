@@ -91,18 +91,9 @@ async def roll_handler(client, callback_query):
         # Immediate feedback to the user
         await callback_query.answer("🎲 Rolling...")
 
-        # Single frame animation to avoid FloodWait (rate limiting)
-        fake_val = random.randint(1, 6)
-        frame = generate_dice_frame(fake_val)
-        try:
-            await client.edit_message_media(
-                chat_id, callback_query.message.id,
-                media=types.InputMediaPhoto(frame, caption="🎲 Rolling...")
-            )
-            await asyncio.sleep(0.3) # Very brief pause
-        except Exception:
-            pass # Continue even if animation fails
-
+        # Skip multi-frame animation to avoid FloodWait and lag.
+        # The 'Rolling...' answer above provides sufficient immediate feedback.
+        
         real_val = random.randint(1, 6)
         
         # Track consecutive 6s
@@ -113,18 +104,6 @@ async def roll_handler(client, callback_query):
             consecutive_sixes = 0
         
         await db.update_game_state(game['id'], dice_value=real_val, consecutive_sixes=consecutive_sixes)
-        
-        # Notify all players of the dice roll
-        try:
-            dice_emoji = "🎲"
-            player_name = curr_player.get('username') or 'Player'
-            await client.send_message(
-                chat_id,
-                f"{dice_emoji} **@{player_name}** rolled a **{real_val}**!",
-                disable_notification=True
-            )
-        except Exception:
-            pass  # Don't fail if notification fails
         
         # Three 6s Rule: Turn immediately ends after third consecutive 6
         if consecutive_sixes >= 3:
@@ -158,6 +137,7 @@ async def roll_handler(client, callback_query):
             if game and game['dice_value'] == -1:
                 await db.update_game_state(game['id'], dice_value=0)
             await callback_query.answer("⚠️ Roll failed. Please try again.", show_alert=True)
+            print(f"Roll Error: {e}")
         except:
             pass
 

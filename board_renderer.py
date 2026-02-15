@@ -111,18 +111,19 @@ def load_base_board():
 BASE_BOARD_IMG = load_base_board()
 
 def draw_glow(draw, x, y, color):
-    for i in range(10, 40, 5):
-        alpha = int(100 * (1 - i/40))
+    # Simplified glow: 3 ellipses instead of 6
+    for i in range(15, 36, 10):
+        alpha = int(80 * (1 - i/40))
         glow_color = (*color[:3], alpha)
         draw.ellipse([x-i, y-i, x+i, y+i], fill=glow_color)
 
 def render_board(game_state):
-    # Re-verify if playing_board.png was added since last load
+    # Performance: Only check board file logic if not already loaded once
     global BASE_BOARD_IMG
     if not hasattr(render_board, "bg_loaded") or not render_board.bg_loaded:
         if os.path.exists("playing_board.png"):
             BASE_BOARD_IMG = load_base_board()
-            render_board.bg_loaded = True
+        render_board.bg_loaded = True
 
     img = BASE_BOARD_IMG.copy()
     overlay = Image.new('RGBA', img.size, (255, 255, 255, 0))
@@ -162,21 +163,20 @@ def render_board(game_state):
             p_color = game_state['players'][p_idx]['color']
             base_px, base_py = get_token_pixel_position(p_color, pos, t_idx)
             
-            # Spread tokens slightly if multiple on one spot (except base)
             px, py = base_px, base_py
             if pos != -1 and count > 1:
                 off_x = (i - (count-1)/2) * 15
                 off_y = (i - (count-1)/2) * 15
                 px, py = px + off_x, py + off_y
             
-            # Shadow
-            draw.ellipse([px-22, py-22+4, px+22, py+22+4], fill=(0, 0, 0, 60))
+            # Simplified shadow (one ellipse)
+            draw.ellipse([px-22, py-18, px+22, py+26], fill=(0, 0, 0, 40))
             # Border
             draw.ellipse([px-24, py-24, px+24, py+24], fill=(255, 255, 255))
             # Token
             draw.ellipse([px-22, py-22, px+22, py+22], fill=player_colors[p_color])
-            # Inner gloss
-            draw.ellipse([px-10, py-10, px+5, py+5], fill=(255, 255, 255, 100))
+            # Inner gloss (Simplified)
+            draw.ellipse([px-10, py-10, px+5, py+5], fill=(255, 255, 255, 80))
 
     img.paste(overlay, (0, 0), overlay)
     draw_final = ImageDraw.Draw(img)
@@ -185,11 +185,12 @@ def render_board(game_state):
     
     if curr_turn < len(game_state['players']):
         curr_p = game_state['players'][curr_turn]
-        # Semi-transparent bar for text readability if needed
-        draw_final.rectangle([10, 10, 400, 60], fill=(255, 255, 255, 180))
+        draw_final.rectangle([10, 10, 400, 60], fill=(255, 255, 255, 200))
         draw_final.text((20, 15), f"Turn: @{curr_p['username']}", fill=(0, 0, 0), font=font)
     
     buf = io.BytesIO()
-    img.save(buf, format='PNG')
+    # Optimized: Save as JPEG with 85% quality instead of PNG
+    # This significantly reduces file size (e.g. 200KB -> 40KB) and improves speed
+    img.save(buf, format='JPEG', quality=85)
     buf.seek(0)
     return buf

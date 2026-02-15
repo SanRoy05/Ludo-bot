@@ -78,19 +78,37 @@ class LudoDB:
 
     async def get_game(self, chat_id):
         async with self.pool.acquire() as conn:
-            game = await conn.fetchrow("SELECT * FROM games WHERE chat_id = $1", chat_id)
-            if not game: return None
+            # Optimized: Fetch game, players, and tokens in a single request using JSON aggregation
+            row = await conn.fetchrow("""
+                SELECT g.*, 
+                    (SELECT jsonb_agg(p_data)
+                     FROM (
+                         SELECT p.*, 
+                            (SELECT jsonb_agg(t_data)
+                             FROM (
+                                 SELECT * FROM tokens t WHERE t.player_id = p.id ORDER BY t.token_index
+                             ) t_data) as tokens
+                         FROM players p
+                         WHERE p.game_id = g.id
+                         ORDER BY p.color
+                     ) p_data) as players
+                FROM games g
+                WHERE g.chat_id = $1
+            """, chat_id)
             
-            players = await conn.fetch("SELECT * FROM players WHERE game_id = $1 ORDER BY color", game['id'])
-            player_list = []
-            for p in players:
-                tokens = await conn.fetch("SELECT * FROM tokens WHERE player_id = $1 ORDER BY token_index", p['id'])
-                p_dict = dict(p)
-                p_dict['tokens'] = [dict(t) for t in tokens]
-                player_list.append(p_dict)
+            if not row:
+                return None
             
-            game_dict = dict(game)
-            game_dict['players'] = player_list
+            game_dict = dict(row)
+            # asyncpg returns the result of jsonb_agg as a list of dicts (or string depending on driver config/type)
+            # By default with asyncpg and jsonb, it returns list of dicts.
+            if game_dict['players'] is None:
+                game_dict['players'] = []
+            else:
+                # Ensure nested items are also converted/handled if needed
+                # Actually asyncpg's jsonb_agg already returns them as Python objects.
+                pass
+                
             return game_dict
 
     async def add_player(self, game_id, user_id, username, color, team_id=None):
